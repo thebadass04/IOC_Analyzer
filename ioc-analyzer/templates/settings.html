@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="header-section">
+        <h1><i class="fas fa-cog"></i> Settings</h1>
+        <p>Configure your VirusTotal API settings</p>
+    </div>
+
+    <div class="settings-section">
+        <div class="card">
+            <div class="card-header">
+                <h2><i class="fas fa-key"></i> VirusTotal API Configuration</h2>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('save_settings') }}">
+                    <div class="form-group">
+                        <label for="api_key">API Key:</label>
+                        <input type="password" id="api_key" name="api_key" value="{{ api_key }}" 
+                               placeholder="Enter your VirusTotal API key">
+                        <button type="button" id="toggle-key" class="btn-icon">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="form-info">
+                        <div class="info-box">
+                            <i class="fas fa-info-circle"></i>
+                            <div>
+                                <h4>How to get your API key:</h4>
+                                <ol>
+                                    <li>Visit <a href="https://www.virustotal.com/" target="_blank">VirusTotal.com</a></li>
+                                    <li>Create an account or sign in</li>
+                                    <li>Go to your profile settings</li>
+                                    <li>Copy your API key from the API Key section</li>
+                                </ol>
+                                <p><strong>Note:</strong> Free API keys have rate limits (4 requests/minute)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
