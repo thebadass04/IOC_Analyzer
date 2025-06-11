@@ -1,0 +1,58 @@
+<div class="container">
+    <div class="header-section">
+        <h1><i class="fas fa-search"></i> IOC Analysis Dashboard</h1>
+        <p>Analyze Indicators of Compromise using VirusTotal API</p>
+        <p>Os resultados podem demorar algum tempo devido as limitações da API gratis</p>
+    </div>
+
+    <div class="analysis-section">
+        <div class="card">
+            <div class="card-header">
+                <h2><i class="fas fa-upload"></i> Bulk IOC Analysis</h2>
+            </div>
+            <div class="card-body">
+                <div class="input-section">
+                    <div class="input-group">
+                        <label for="ioc-input">Enter IOCs (one per line):</label>
+                        <textarea id="ioc-input" placeholder="Enter IOCs here...&#10;Example:&#10;44d88612fea8a8f36de82e1278abb02f (MD5)&#10;google.com (Domain)&#10;8.8.8.8 (IP)&#10;https://example.com (URL)"></textarea>
+                        <button type="button" id="format-iocs" class="textarea-btn-icon" title="Format and validate IOCs">
+                            <i class="fas fa-magic"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="controls">
+                        <button id="analyze-btn" class="btn btn-primary">
+                            <i class="fas fa-play"></i> Start Analysis
+                        </button>
+                        <button id="clear-btn" class="btn btn-secondary">
+                            <i class="fas fa-trash"></i> Clear
+                        </button>
+                    </div>
+                </div>
+
+                <div id="progress-section" class="progress-section" style="display: none;">
+                    <div class="progress-bar">
+                        <div id="progress-fill" class="progress-fill"></div>
+                    </div>
+                    <p id="progress-text">Analyzing IOCs...</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="results-section" class="results-section" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-chart-bar"></i> Analysis Results</h2>
+                    <button id="export-btn" class="btn btn-outline">
+                        <i class="fas fa-download"></i> Export Results
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="results-summary" class="results-summary"></div>
+                    <div id="results-table" class="results-table"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
