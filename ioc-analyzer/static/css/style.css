@@ -1,3 +1,4 @@
+
 :root {
     /* Orange Color Palette */
     --primary-orange: #FF6600;
@@ -5,7 +6,7 @@
     --light-orange: #FF8533;
     --pale-orange: #FFB366;
     --very-light-orange: #FFE0CC;
-    
+
     /* Black/Gray Palette - FIXED */
     --black: #000000;        /* Fixed from #0000 */
     --dark-gray: #1A1A1A;
