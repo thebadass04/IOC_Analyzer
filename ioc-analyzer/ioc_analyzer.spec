@@ -56,5 +56,5 @@ exe = EXE(
     argv_emulation=False,
     target_arch=None,
     cofile=None,
-    icon=None,
+    icon='icon.ico',
 )
