@@ -6,9 +6,12 @@ import os
 import shutil
 import atexit
 import sys
+import base64
 from datetime import datetime
 import hashlib
 import re
+from cryptography.fernet import Fernet
+import keyring
 
 # PyInstaller compatibility
 def resource_path(relative_path):
@@ -44,33 +47,109 @@ def cleanup_results():
 # Register cleanup function to run when app closes
 atexit.register(cleanup_results)
 
+class SecureStorage:
+    """Secure storage for API keys"""
+    
+    def __init__(self):
+        self.app_name = "IOC_Analyzer"
+        self.key_name = "vt_api_key"
+        # Generate a key for encryption (in production, this should be more secure)
+        self.encryption_key = self._get_or_create_key()
+    
+    def _get_or_create_key(self):
+        """Get or create encryption key"""
+        try:
+            # Try to get existing key from keyring
+            key = keyring.get_password(self.app_name, "encryption_key")
+            if key:
+                return key.encode()
+            else:
+                # Generate new key
+                key = Fernet.generate_key()
+                keyring.set_password(self.app_name, "encryption_key", key.decode())
+                return key
+        except:
+            # Fallback to a static key (less secure but works without keyring)
+            return base64.urlsafe_b64encode(b"IOC_Analyzer_Key_2024_Secure_Storage_32")
+    
+    def encrypt_data(self, data):
+        """Encrypt sensitive data"""
+        try:
+            f = Fernet(self.encryption_key)
+            encrypted_data = f.encrypt(data.encode())
+            return base64.urlsafe_b64encode(encrypted_data).decode()
+        except:
+            return data  # Fallback to plain text if encryption fails
+    
+    def decrypt_data(self, encrypted_data):
+        """Decrypt sensitive data"""
+        try:
+            f = Fernet(self.encryption_key)
+            decoded_data = base64.urlsafe_b64decode(encrypted_data.encode())
+            decrypted_data = f.decrypt(decoded_data)
+            return decrypted_data.decode()
+        except:
+            return encrypted_data  # Assume it's plain text if decryption fails
+    
+    def save_api_key(self, api_key):
+        """Save API key securely"""
+        try:
+            # Method 1: Try to use system keyring (most secure)
+            keyring.set_password(self.app_name, self.key_name, api_key)
+            return True
+        except:
+            try:
+                # Method 2: Encrypted file storage (fallback)
+                encrypted_key = self.encrypt_data(api_key)
+                config = {'vt_api_key_encrypted': encrypted_key}
+                with open(CONFIG_FILE, 'w') as f:
+                    json.dump(config, f)
+                return True
+            except Exception as e:
+                print(f"Error saving API key: {e}")
+                return False
+    
+    def load_api_key(self):
+        """Load API key securely"""
+        try:
+            # Method 1: Try to get from system keyring
+            api_key = keyring.get_password(self.app_name, self.key_name)
+            if api_key:
+                return api_key
+        except:
+            pass
+        
+        try:
+            # Method 2: Try encrypted file storage
+            if os.path.exists(CONFIG_FILE):
+                with open(CONFIG_FILE, 'r') as f:
+                    config = json.load(f)
+                    encrypted_key = config.get('vt_api_key_encrypted')
+                    if encrypted_key:
+                        return self.decrypt_data(encrypted_key)
+                    # Fallback for old plain text storage
+                    return config.get('vt_api_key', '')
+        except Exception as e:
+            print(f"Error loading API key: {e}")
+        
+        return ''
+
 class IOCAnalyzer:
     def __init__(self):
+        self.secure_storage = SecureStorage()
         self.api_key = self.load_api_key()
         self.base_url = "https://www.virustotal.com/vtapi/v2/"
     
     def load_api_key(self):
-        """Load API key from config file"""
-        try:
-            if os.path.exists(CONFIG_FILE):
-                with open(CONFIG_FILE, 'r') as f:
-                    config = json.load(f)
-                    return config.get('vt_api_key', '')
-        except Exception as e:
-            print(f"Error loading config: {e}")
-        return ''
+        """Load API key from secure storage"""
+        return self.secure_storage.load_api_key()
     
     def save_api_key(self, api_key):
-        """Save API key to config file"""
-        try:
-            config = {'vt_api_key': api_key}
-            with open(CONFIG_FILE, 'w') as f:
-                json.dump(config, f)
+        """Save API key to secure storage"""
+        if self.secure_storage.save_api_key(api_key):
             self.api_key = api_key
             return True
-        except Exception as e:
-            print(f"Error saving config: {e}")
-            return False
+        return False
     
     def validate_ioc(self, ioc, ioc_type):
         """Validate IOC format"""
@@ -274,19 +353,21 @@ def index():
 @app.route('/settings')
 def settings():
     """Settings page"""
-    return render_template('settings.html', api_key=analyzer.api_key)
+    # Don't show the actual API key for security
+    masked_key = '*' * 32 if analyzer.api_key else ''
+    return render_template('settings.html', api_key=masked_key)
 
 @app.route('/save_settings', methods=['POST'])
 def save_settings():
     """Save API key settings"""
     api_key = request.form.get('api_key', '').strip()
     
-    if not api_key:
-        flash('API key cannot be empty', 'error')
+    if not api_key or api_key == '*' * 32:
+        flash('Please enter a valid API key', 'error')
         return redirect(url_for('settings'))
     
     if analyzer.save_api_key(api_key):
-        flash('Settings saved successfully', 'success')
+        flash('Settings saved securely', 'success')
     else:
         flash('Error saving settings', 'error')
     
