@@ -14,14 +14,21 @@
             </div>
             <div class="card-body">
                 <div class="input-section">
-                    <div class="input-group">
+                    <div class="form-group">
                         <label for="ioc-input">Enter IOCs (one per line):</label>
-                        <textarea id="ioc-input" placeholder="Enter IOCs here...&#10;Example:&#10;44d88612fea8a8f36de82e1278abb02f (MD5)&#10;google.com (Domain)&#10;8.8.8.8 (IP)&#10;https://example.com (URL)"></textarea>
-                        <button type="button" id="format-iocs" class="textarea-btn-icon" title="Format and validate IOCs">
-                            <i class="fas fa-magic"></i>
-                        </button>
+                        <div class="textarea-wrapper" style="position: relative;">
+                            <textarea id="ioc-input" rows="10" placeholder="Enter IOCs here...
+Example:
+44d88612fea8a8f36de82e1278abb02f (MD5)
+google.com (Domain)
+8.8.8.8 (IP)
+https://example.com (URL)"></textarea>
+                            <button type="button" id="format-iocs" class="textarea-btn-icon" title="Format and validate IOCs" style="position: absolute; top: 8px; right: 8px;">
+                                <i class="fas fa-magic"></i>
+                            </button>
+                        </div>
                     </div>
-                    
+
                     <div class="controls">
                         <button id="analyze-btn" class="btn btn-primary">
                             <i class="fas fa-play"></i> Start Analysis
