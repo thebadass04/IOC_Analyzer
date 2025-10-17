@@ -20,7 +20,6 @@ a = Analysis(
         'atexit',
         'sys',
         'datetime',
-        'hashlib',
         're',
         'webbrowser',
         'threading'
