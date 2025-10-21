@@ -8,7 +8,6 @@ import atexit
 import sys
 import base64
 from datetime import datetime
-import hashlib
 import re
 from cryptography.fernet import Fernet
 import keyring
