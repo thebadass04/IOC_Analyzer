@@ -3,8 +3,15 @@
 {% block content %}
 <div class="container">
     <div class="header-section">
-        <h1><i class="fas fa-search"></i> IOC Analysis Dashboard</h1>
-        <p>Analyze Indicators of Compromise using VirusTotal API</p>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1><i class="fas fa-search"></i> IOC Analysis Dashboard</h1>
+                <p>Analyze Indicators of Compromise using VirusTotal API</p>
+            </div>
+            <button id="view-logs-btn" class="btn btn-secondary" style="height: fit-content;">
+                <i class="fas fa-file-alt"></i> View Logs
+            </button>
+        </div>
     </div>
 
     <div class="analysis-section">
@@ -60,8 +67,38 @@ https://example.com (URL)"></textarea>
                     <div id="results-summary" class="results-summary"></div>
                     <div id="results-table" class="results-table"></div>
                 </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Log Viewer Modal -->
+<div id="log-modal" class="modal">
+    <div class="modal-content log-modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-file-alt"></i> Application Logs</h2>
+            <button class="modal-close" onclick="closeLogModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="log-controls">
+                <button id="refresh-logs-btn" class="btn btn-secondary">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+                <button id="clear-logs-display-btn" class="btn btn-secondary">
+                    <i class="fas fa-eraser"></i> Clear Display
+                </button>
+                <div class="log-info">
+                    <span id="log-count">Loading...</span>
+                </div>
+            </div>
+            <div id="log-viewer" class="log-viewer">
+                <div class="log-loading">
+                    <i class="fas fa-spinner fa-spin"></i> Loading logs...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}

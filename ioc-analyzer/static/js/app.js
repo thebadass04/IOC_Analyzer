@@ -377,7 +377,106 @@ class IOCAnalyzer {
     }
 }
 
+// Log Viewer Functions
+function openLogModal() {
+    const modal = document.getElementById('log-modal');
+    modal.style.display = 'block';
+    loadLogs();
+}
+
+function closeLogModal() {
+    const modal = document.getElementById('log-modal');
+    modal.style.display = 'none';
+}
+
+async function loadLogs() {
+    const logViewer = document.getElementById('log-viewer');
+    const logCount = document.getElementById('log-count');
+
+    try {
+        logViewer.innerHTML = '<div class="log-loading"><i class="fas fa-spinner fa-spin"></i> Loading logs...</div>';
+
+        const response = await fetch('/logs');
+        const data = await response.json();
+
+        if (data.error) {
+            logViewer.innerHTML = `<div class="log-error"><i class="fas fa-exclamation-triangle"></i> Error loading logs: ${data.error}</div>`;
+            return;
+        }
+
+        if (!data.logs || data.logs.length === 0) {
+            logViewer.innerHTML = '<div class="log-empty"><i class="fas fa-info-circle"></i> No logs available yet</div>';
+            logCount.textContent = 'No logs';
+            return;
+        }
+
+        // Display logs
+        const logsHtml = data.logs.map(line => {
+            // Parse log level for styling
+            let logClass = 'log-line';
+            if (line.includes('| ERROR')) {
+                logClass += ' log-error-line';
+            } else if (line.includes('| WARNING')) {
+                logClass += ' log-warning-line';
+            } else if (line.includes('| INFO')) {
+                logClass += ' log-info-line';
+            } else if (line.includes('| DEBUG')) {
+                logClass += ' log-debug-line';
+            }
+
+            return `<div class="${logClass}">${escapeHtml(line)}</div>`;
+        }).join('');
+
+        logViewer.innerHTML = logsHtml;
+        logCount.textContent = `Showing ${data.logs.length} of ${data.total_lines} log entries`;
+
+        // Auto-scroll to bottom
+        logViewer.scrollTop = logViewer.scrollHeight;
+
+    } catch (error) {
+        logViewer.innerHTML = `<div class="log-error"><i class="fas fa-exclamation-triangle"></i> Error loading logs: ${error.message}</div>`;
+        console.error('Error loading logs:', error);
+    }
+}
+
+function clearLogsDisplay() {
+    const logViewer = document.getElementById('log-viewer');
+    logViewer.innerHTML = '<div class="log-empty"><i class="fas fa-info-circle"></i> Display cleared. Click Refresh to reload logs.</div>';
+    document.getElementById('log-count').textContent = 'Display cleared';
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('log-modal');
+    if (event.target === modal) {
+        closeLogModal();
+    }
+}
+
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
     new IOCAnalyzer();
+
+    // Add log viewer event listeners
+    const viewLogsBtn = document.getElementById('view-logs-btn');
+    const refreshLogsBtn = document.getElementById('refresh-logs-btn');
+    const clearLogsDisplayBtn = document.getElementById('clear-logs-display-btn');
+
+    if (viewLogsBtn) {
+        viewLogsBtn.addEventListener('click', openLogModal);
+    }
+
+    if (refreshLogsBtn) {
+        refreshLogsBtn.addEventListener('click', loadLogs);
+    }
+
+    if (clearLogsDisplayBtn) {
+        clearLogsDisplayBtn.addEventListener('click', clearLogsDisplay);
+    }
 });

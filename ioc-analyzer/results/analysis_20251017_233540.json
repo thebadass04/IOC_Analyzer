@@ -1,0 +1,14 @@
+[
+  {
+    "response_code": 1,
+    "positives": 100,
+    "total": 100,
+    "scan_date": "N/A",
+    "permalink": "https://www.virustotal.com/gui/ip-address/9.9.9.9",
+    "country": "US",
+    "as_owner": "QUAD9-AS-1",
+    "ioc": "9.9.9.9",
+    "type": "ip",
+    "analyzed_at": "2025-10-17T23:35:40.577014"
+  }
+]
