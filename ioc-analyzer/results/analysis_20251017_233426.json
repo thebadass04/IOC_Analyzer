@@ -1,0 +1,14 @@
+[
+  {
+    "response_code": 1,
+    "positives": 100,
+    "total": 100,
+    "scan_date": "N/A",
+    "permalink": "https://www.virustotal.com/gui/ip-address/8.8.8.8",
+    "country": "US",
+    "as_owner": "GOOGLE",
+    "ioc": "8.8.8.8",
+    "type": "ip",
+    "analyzed_at": "2025-10-17T23:34:26.494451"
+  }
+]

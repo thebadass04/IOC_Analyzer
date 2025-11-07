@@ -11,6 +11,8 @@ from datetime import datetime
 import re
 from cryptography.fernet import Fernet
 import keyring
+import logging
+from logging.handlers import RotatingFileHandler
 
 # PyInstaller compatibility
 def resource_path(relative_path):
@@ -30,9 +32,50 @@ app.secret_key = 'your-secret-key-change-this'
 # Configuration - Use current directory for config and results
 CONFIG_FILE = 'config.json'
 RESULTS_DIR = 'results'
+LOGS_DIR = 'logs'
 
-# Ensure results directory exists
+# Ensure directories exist
 os.makedirs(RESULTS_DIR, exist_ok=True)
+os.makedirs(LOGS_DIR, exist_ok=True)
+
+# Setup logging
+def setup_logging():
+    """Configure application logging"""
+    log_file = os.path.join(LOGS_DIR, 'ioc_analyzer.log')
+
+    # Create formatter
+    formatter = logging.Formatter(
+        '%(asctime)s | %(levelname)-8s | %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+
+    # File handler with rotation (max 5MB, keep 5 backup files)
+    file_handler = RotatingFileHandler(
+        log_file,
+        maxBytes=5*1024*1024,  # 5MB
+        backupCount=5
+    )
+    file_handler.setFormatter(formatter)
+    file_handler.setLevel(logging.INFO)
+
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    console_handler.setLevel(logging.INFO)
+
+    # Configure root logger
+    logger = logging.getLogger('IOCAnalyzer')
+    logger.setLevel(logging.INFO)
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+    return logger
+
+# Initialize logger
+app_logger = setup_logging()
+app_logger.info("=" * 80)
+app_logger.info("IOC Analyzer Application Started")
+app_logger.info("=" * 80)
 
 def cleanup_results():
     """Clean up results folder when app closes"""
@@ -138,6 +181,14 @@ class IOCAnalyzer:
         self.secure_storage = SecureStorage()
         self.api_key = self.load_api_key()
         self.base_url = "https://www.virustotal.com/vtapi/v2/"
+        self.logger = logging.getLogger('IOCAnalyzer')
+        if self.api_key:
+            self.logger.info("API key loaded successfully")
+        else:
+            self.logger.warning("No API key configured")
+        self.secure_storage = SecureStorage()
+        self.api_key = self.load_api_key()
+        self.base_url = "https://www.virustotal.com/vtapi/v2/"
     
     def load_api_key(self):
         """Load API key from secure storage"""
@@ -147,7 +198,9 @@ class IOCAnalyzer:
         """Save API key to secure storage"""
         if self.secure_storage.save_api_key(api_key):
             self.api_key = api_key
+            self.logger.info("API key saved successfully")
             return True
+        self.logger.error("Failed to save API key")
         return False
     
     def validate_ioc(self, ioc, ioc_type):
@@ -182,34 +235,41 @@ class IOCAnalyzer:
             return dt.strftime('%Y-%m-%d %H:%M')
         except:
             return scan_date
-    
+
     def analyze_hash(self, hash_value):
         """Analyze file hash using VirusTotal API"""
+        self.logger.info(f"Analyzing hash: {hash_value}")
         url = f"{self.base_url}file/report"
         params = {
             'apikey': self.api_key,
             'resource': hash_value
         }
-        
+
         try:
-            response = requests.get(url, params=params)
+            self.logger.debug(f"Sending request to: {url}")
+            response = requests.get(url, params=params, timeout=30)
             result = response.json()
-            
-            print(f"Hash API Response: {result}")  # Debug output
-            
+
+            self.logger.debug(f"Hash API Response: {result}")
+
             # Handle VirusTotal response format
             if result.get('response_code') == 1:
                 # File found in VirusTotal database
+                positives = result.get('positives', 0)
+                total = result.get('total', 0)
+                self.logger.info(f"Hash analysis complete: {hash_value} - Detections: {positives}/{total}")
                 return {
                     'response_code': result.get('response_code'),
-                    'positives': result.get('positives', 0),
-                    'total': result.get('total', 0),
+                    'positives': positives,
+                    'total': total,
                     'scan_date': self.format_scan_date(result.get('scan_date')),
                     'permalink': result.get('permalink'),
                     'md5': result.get('md5'),
                     'sha1': result.get('sha1'),
                     'sha256': result.get('sha256')
                 }
+
+            # Duplicate response_code == 1 handler removed — handled earlier
             elif result.get('response_code') == 0:
                 # File not found in database
                 return {
@@ -225,35 +285,40 @@ class IOCAnalyzer:
                 
         except Exception as e:
             return {'error': str(e)}
-    
+
     def analyze_ip(self, ip_address):
         """Analyze IP address using VirusTotal API"""
+        self.logger.info(f"Analyzing IP: {ip_address}")
         url = f"{self.base_url}ip-address/report"
         params = {
             'apikey': self.api_key,
             'ip': ip_address
         }
-        
+
         try:
+            self.logger.debug(f"Sending request to: {url}")
             response = requests.get(url, params=params)
             result = response.json()
-            
-            print(f"IP API Response: {result}")  # Debug output
-            
+
+            self.logger.debug(f"IP API Response: {result}")
+
             if result.get('response_code') == 1:
                 detected_urls = result.get('detected_urls', [])
-                positives = len([url for url in detected_urls if url.get('positives', 0) > 0])
-                
+                positives = len([u for u in detected_urls if u.get('positives', 0) > 0])
+                total = len(detected_urls) if detected_urls else 0
+                self.logger.info(f"IP analysis complete: {ip_address} - Detected URLs: {positives}/{total}")
+
                 return {
                     'response_code': result.get('response_code'),
                     'positives': positives,
-                    'total': len(detected_urls) if detected_urls else 0,
+                    'total': total,
                     'scan_date': self.format_scan_date(result.get('scan_date')),
                     'permalink': f"https://www.virustotal.com/gui/ip-address/{ip_address}",
                     'country': result.get('country'),
                     'as_owner': result.get('as_owner')
                 }
             else:
+                self.logger.info(f"IP not found in database: {ip_address}")
                 return {
                     'response_code': 0,
                     'positives': 0,
@@ -262,37 +327,43 @@ class IOCAnalyzer:
                     'permalink': f"https://www.virustotal.com/gui/ip-address/{ip_address}",
                     'message': 'IP not found in VirusTotal database'
                 }
-                
+
         except Exception as e:
+            self.logger.error(f"Error analyzing IP {ip_address}: {e}")
             return {'error': str(e)}
-    
+
     def analyze_domain(self, domain):
         """Analyze domain using VirusTotal API"""
+        self.logger.info(f"Analyzing domain: {domain}")
         url = f"{self.base_url}domain/report"
         params = {
             'apikey': self.api_key,
             'domain': domain
         }
-        
+
         try:
+            self.logger.debug(f"Sending request to: {url}")
             response = requests.get(url, params=params)
             result = response.json()
-            
-            print(f"Domain API Response: {result}")  # Debug output
-            
+
+            self.logger.debug(f"Domain API Response: {result}")
+
             if result.get('response_code') == 1:
                 detected_urls = result.get('detected_urls', [])
                 positives = len([url for url in detected_urls if url.get('positives', 0) > 0])
-                
+                self.logger.info(f"Domain analysis complete: {domain} - Detected URLs: {positives}/{len(detected_urls)}")
+
                 return {
                     'response_code': result.get('response_code'),
                     'positives': positives,
                     'total': len(detected_urls) if detected_urls else 0,
                     'scan_date': self.format_scan_date(result.get('scan_date')),
                     'permalink': f"https://www.virustotal.com/gui/domain/{domain}",
-                    'whois_timestamp': result.get('whois_timestamp')
+                    'categories': result.get('categories', {}),
+                    'whois': result.get('whois')
                 }
             else:
+                self.logger.info(f"Domain not found in database: {domain}")
                 return {
                     'response_code': 0,
                     'positives': 0,
@@ -301,33 +372,40 @@ class IOCAnalyzer:
                     'permalink': f"https://www.virustotal.com/gui/domain/{domain}",
                     'message': 'Domain not found in VirusTotal database'
                 }
-                
+
         except Exception as e:
+            self.logger.error(f"Error analyzing domain {domain}: {e}")
             return {'error': str(e)}
-    
+
     def analyze_url(self, url_to_check):
         """Analyze URL using VirusTotal API"""
+        self.logger.info(f"Analyzing URL: {url_to_check}")
         url = f"{self.base_url}url/report"
         params = {
             'apikey': self.api_key,
             'resource': url_to_check
         }
-        
+
         try:
+            self.logger.debug(f"Sending request to: {url}")
             response = requests.get(url, params=params)
             result = response.json()
-            
-            print(f"URL API Response: {result}")  # Debug output
-            
+
+            self.logger.debug(f"URL API Response: {result}")
+
             if result.get('response_code') == 1:
+                positives = result.get('positives', 0)
+                total = result.get('total', 0)
+                self.logger.info(f"URL analysis complete: {url_to_check} - Detections: {positives}/{total}")
                 return {
                     'response_code': result.get('response_code'),
-                    'positives': result.get('positives', 0),
-                    'total': result.get('total', 0),
+                    'positives': positives,
+                    'total': total,
                     'scan_date': self.format_scan_date(result.get('scan_date')),
                     'permalink': result.get('permalink')
                 }
             elif result.get('response_code') == 0:
+                self.logger.info(f"URL not found in database: {url_to_check}")
                 return {
                     'response_code': 0,
                     'positives': 0,
@@ -337,9 +415,12 @@ class IOCAnalyzer:
                     'message': 'URL not found in VirusTotal database'
                 }
             else:
-                return {'error': result.get('verbose_msg', 'Unknown error')}
-                
+                error_msg = result.get('verbose_msg', 'Unknown error')
+                self.logger.error(f"URL analysis error: {url_to_check} - {error_msg}")
+                return {'error': error_msg}
+
         except Exception as e:
+            self.logger.error(f"Exception during URL analysis: {url_to_check} - {str(e)}")
             return {'error': str(e)}
 
 analyzer = IOCAnalyzer()
@@ -435,11 +516,34 @@ def analyze_iocs():
             json.dump(results, f, indent=2)
     except Exception as e:
         print(f"Error saving results: {e}")
-    
+
     return jsonify({
         'results': results,
         'saved_to': filename
     })
+
+@app.route('/logs')
+def get_logs():
+    """Fetch application logs"""
+    try:
+        log_file = os.path.join(LOGS_DIR, 'ioc_analyzer.log')
+
+        if not os.path.exists(log_file):
+            return jsonify({'logs': [], 'message': 'No logs available yet'})
+
+        # Read the last 500 lines of the log file
+        with open(log_file, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+            # Get last 500 lines
+            recent_lines = lines[-500:] if len(lines) > 500 else lines
+
+        return jsonify({
+            'logs': recent_lines,
+            'total_lines': len(lines)
+        })
+    except Exception as e:
+        app_logger.error(f"Error fetching logs: {e}")
+        return jsonify({'error': str(e)}), 500
 
 def open_browser():
     """Open browser after a short delay"""
